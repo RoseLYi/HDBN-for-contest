@@ -4,88 +4,59 @@ import numpy as np
 from tqdm import tqdm
 from skopt import gp_minimize
 
-def load_scores(file_paths):
-    """
-    加载多个模型的预测得分，并返回一个列表。
-    """
-    scores = []
-    for file_path in file_paths:
-        with open(file_path, 'rb') as f:
-            scores.append(list(pickle.load(f).items()))
-    return scores
+def load_score(file_path):
+    """Load the score file if the path is provided, otherwise return None."""
+    with open(file_path, 'rb') as file:
+        return list(pickle.load(file).items())
 
-def objective(weights, scores, labels):
-    """
-    目标函数，用于评估给定权重下的准确率。
-    """
-    right_num = total_num = 0
-    for i in tqdm(range(len(labels)), desc="Evaluating accuracy"):
-        l = labels[i]
-        combined_score = np.zeros_like(scores[0][i][1])
-        for j, (score_list, weight) in enumerate(zip(scores, weights)):
-            _, score = score_list[i]
-            combined_score += score * weight
-        prediction = np.argmax(combined_score)
-        right_num += int(prediction == int(l))
-        total_num += 1
-    acc = right_num / total_num
-    print(f"Accuracy: {acc:.4f}")
-    return -acc
+def objective(weights):
+    """Objective function to maximize accuracy using weighted score fusion."""
+    right_num = 0
+    total_num = len(label)
+
+    for i in tqdm(range(total_num)):
+        l = label[i]
+        combined_score = sum(r[i][1] * w for r, w in zip(scores, weights))
+        pred_label = np.argmax(combined_score)
+        right_num += int(pred_label == int(l))
+
+    accuracy = right_num / total_num
+    print(f"Accuracy: {accuracy:.4f}")
+    return -accuracy  # Minimize negative accuracy for maximizing accuracy
+
+def get_parser():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Multi-stream ensemble with weight optimization")
+    score_files = [
+        'mixformer_J', 'mixformer_B', 'mixformer_JM', 'mixformer_BM', 'mixformer_k2', 'mixformer_k2M',
+        'ctrgcn_J2d', 'ctrgcn_B2d', 'ctrgcn_JM2d', 'ctrgcn_BM2d', 'ctrgcn_J3d', 'ctrgcn_B3d', 
+        'ctrgcn_JM3d', 'ctrgcn_BM3d', 'tdgcn_J2d', 'tdgcn_B2d', 'tdgcn_JM2d', 'tdgcn_BM2d', 
+        'mstgcn_J2d', 'mstgcn_B2d', 'mstgcn_JM2d', 'mstgcn_BM2d'
+    ]
+    
+    for score_file in score_files:
+        parser.add_argument(f'--{score_file}_Score', type=str, required=True, help=f'Path to {score_file} score file')
+    
+    parser.add_argument('--benchmark', choices=['V1', 'V2'], default='V1', help='Benchmark dataset version')
+    return parser
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Optimize model ensemble weights using Gaussian Process.")
-    
-    # 添加命令行参数
-    parser.add_argument('--benchmark', default='V1', choices=['V1', 'V2'], help="Benchmark version")
-    parser.add_argument('--mixformer_J_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_J/epoch1_test_score.pkl')
-    parser.add_argument('--mixformer_B_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_B/epoch1_test_score.pkl')
-    parser.add_argument('--mixformer_JM_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_JM/epoch1_test_score.pkl')
-    parser.add_argument('--mixformer_BM_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_BM/epoch1_test_score.pkl')
-    parser.add_argument('--mixformer_k2_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_k2/epoch1_test_score.pkl')
-    parser.add_argument('--mixformer_k2M_Score', default='./Model_inference/Mix_Former/output/skmixf__V1_k2M/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_J2d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_B2d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_JM2d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_BM2d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_J3d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J_3D/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_B3d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B_3D/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_JM3d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_JM_3D/epoch1_test_score.pkl')
-    parser.add_argument('--ctrgcn_BM3d_Score', default='./Model_inference/Mix_GCN/output/ctrgcn_V1_BM_3D/epoch1_test_score.pkl')
-    parser.add_argument('--tdgcn_J2d_Score', default='./Model_inference/Mix_GCN/output/tdgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument('--tdgcn_B2d_Score', default='./Model_inference/Mix_GCN/output/tdgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument('--tdgcn_JM2d_Score', default='./Model_inference/Mix_GCN/output/tdgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument('--tdgcn_BM2d_Score', default='./Model_inference/Mix_GCN/output/tdgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument('--mstgcn_J2d_Score', default='./Model_inference/Mix_GCN/output/mstgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument('--mstgcn_B2d_Score', default='./Model_inference/Mix_GCN/output/mstgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument('--mstgcn_JM2d_Score', default='./Model_inference/Mix_GCN/output/mstgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument('--mstgcn_BM2d_Score', default='./Model_inference/Mix_GCN/output/mstgcn_V1_BM/epoch1_test_score.pkl')
-    
+    # Parse arguments
+    parser = get_parser()
     args = parser.parse_args()
 
-    # 选择基准版本
-    benchmark = args.benchmark
-    npz_data = np.load(f'./Model_inference/Mix_Former/dataset/save_2d_pose/{benchmark}.npz')
-    labels = npz_data['y_test']
+    # Load labels
+    dataset_path = f'./Model_inference/Mix_Former/dataset/save_2d_pose/{args.benchmark}.npz'
+    npz_data = np.load(dataset_path)
+    label = npz_data['y_test']
 
-    # 收集所有模型的预测得分文件路径
-    file_paths = [
-        args.mixformer_J_Score, args.mixformer_B_Score, args.mixformer_JM_Score, args.mixformer_BM_Score,
-        args.mixformer_k2_Score, args.mixformer_k2M_Score, args.ctrgcn_J2d_Score, args.ctrgcn_B2d_Score,
-        args.ctrgcn_JM2d_Score, args.ctrgcn_BM2d_Score, args.ctrgcn_J3d_Score, args.ctrgcn_B3d_Score,
-        args.ctrgcn_JM3d_Score, args.ctrgcn_BM3d_Score, args.tdgcn_J2d_Score, args.tdgcn_B2d_Score,
-        args.tdgcn_JM2d_Score, args.tdgcn_BM2d_Score, args.mstgcn_J2d_Score, args.mstgcn_B2d_Score,
-        args.mstgcn_JM2d_Score, args.mstgcn_BM2d_Score
-    ]
+    # Load score files
+    score_files = [getattr(args, f"{name}_Score") for name in get_parser().parse_args()._get_kwargs() if 'Score' in name]
+    scores = [load_score(file) for file in score_files]
 
-    # 加载模型预测得分
-    scores = load_scores(file_paths)
-
-    # 定义搜索空间
-    search_space = [(0.2, 1.2) for _ in range(len(file_paths))]
-
-    # 使用高斯过程优化权重
-    result = gp_minimize(lambda w: objective(w, scores, labels), search_space, n_calls=200, random_state=0)
-
-    # 输出最优结果
-    print(f'Maximum accuracy: {result.fun * -100:.4f}%')
+    # Optimize weights
+    space = [(0.2, 1.2)] * len(scores)
+    result = gp_minimize(objective, space, n_calls=200, random_state=0)
+    print(f'Maximum accuracy: {-result.fun * 100:.4f}%')
     print(f'Optimal weights: {result.x}')
+
