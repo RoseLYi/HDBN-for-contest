@@ -1,3 +1,4 @@
+
 import pickle
 import numpy as np
 from pyswarms.single.global_best import GlobalBestPSO
@@ -6,6 +7,8 @@ import time
 import random
 import multiprocessing
 from functools import partial
+
+# 定义模型文件路径
 
 gcn_3d_names = {
     "ctrgcn_jm_3d": "../scores/Mix_GCN/ctrgcn_V1_JM_3d.pkl",
@@ -42,72 +45,51 @@ former_2d_names = {
     "former_jm_2d": "../scores/Mix_Former/mixformer_JM_2d.pkl",
 }
 
-# 加载预处理的数据
-def load_data(gcn_2d: bool = False, former_2d: bool = False, gcn_3d: bool = False, former_3d: bool = False):
-    # 假设每个模型都有自己的特征集，形状为 (2000, 155)
-    data_list = []
-    if gcn_2d:
-        for name in gcn_2d_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    if former_2d:
-        for name in former_2d_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    if former_3d:
-        for name in former_3d_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    if gcn_3d:
-        for name in gcn_3d_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    
-    data_np = np.array(data_list)
-    
-    X = data_np.transpose(1, 0, 2)  # X shape: (samples, models, features)
-    y = np.load("test_label_A.npy")  # 使用numpy加载实际的标签
+def load_model_data(paths):
+    """从给定路径加载模型数据，返回数组形式的数据。"""
+    data = []
+    for path in paths:
+        with open(path, 'rb') as f:
+            data_dict = pickle.load(f)
+            model_data = [data_dict[f"test_{i}"] for i in range(2000)]
+            data.append(model_data)
+    return np.array(data)
 
-    return data_list, X, y
+def load_data(gcn_2d=False, gcn_3d=False, former_2d=False, former_3d=False):
+    """加载指定的模型数据，并返回特征矩阵和标签。"""
+    data_sources = []
+    if gcn_2d:
+        data_sources.append(load_model_data(model_files["gcn_2d"]))
+    if gcn_3d:
+        data_sources.append(load_model_data(model_files["gcn_3d"]))
+    if former_2d:
+        data_sources.append(load_model_data(model_files["former_2d"]))
+    if former_3d:
+        data_sources.append(load_model_data(model_files["former_3d"]))
+
+    X = np.concatenate(data_sources, axis=0).transpose(1, 0, 2)
+    y = np.load("test_label_A.npy")
+    return X, y
 
 def softmax(X):
-    return np.apply_along_axis(lambda x: np.exp(x) / np.sum(np.exp(x)), 0, X)  # 对每个 155 维向量进行 softmax 处理
+    """对特征矩阵 X 的每个向量应用 softmax。"""
+    return np.exp(X) / np.sum(np.exp(X), axis=-1, keepdims=True)
 
-def weighted(X, weights):
-    # 每个样本的最终预测
-    final_pred = np.array([])
-    
-    for index in range(X.shape[0]):
-        weighted_sum = np.zeros(X.shape[2])  # 初始化一个等形的零向量
-        softmax_values = np.array([softmax(X[index][model_index]) for model_index in range(X.shape[1])])  # 对每个模型计算softmax
-        
-        # 对每个模型的预测结果按权重加权
-        for model_index in range(X.shape[1]):
-            weighted_sum += weights[model_index] * softmax_values[model_index]
-        
-        final_pred = np.append(final_pred, np.argmax(weighted_sum))  # 取权重和的最大值
-    
-    return final_pred
+def weighted_predictions(X, weights):
+    """根据权重对模型预测进行加权并返回最终预测。"""
+    predictions = []
+    for sample in X:
+        weighted_sum = np.sum([weights[i] * softmax(sample[i]) for i in range(len(weights))], axis=0)
+        predictions.append(np.argmax(weighted_sum))
+    return np.array(predictions)
 
 def loss_function(weights, X, y):
-    predictions = weighted(X, weights)
-    accuracy = np.mean(predictions == y)
-    return -accuracy  # 我们希望最大化准确率，所以返回负值
+    """计算权重的损失函数，即负准确率。"""
+    predictions = weighted_predictions(X, weights)
+    return -np.mean(predictions == y)
 
-def evaluate(individual, X, y):
-    return -loss_function(individual, X, y),
-
-
-def optimize_weights_ga(X, y, n_generations=25, population_size=50):
-    # 创建遗传算法工具箱
+def optimize_weights_ga(X, y, generations=25, pop_size=50):
+    """使用遗传算法优化加权参数。"""
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
 
@@ -115,88 +97,54 @@ def optimize_weights_ga(X, y, n_generations=25, population_size=50):
     toolbox.register("attr_float", random.uniform, 0, 1)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=X.shape[1])
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-    # 使用 partial 将 X 和 y 绑定到 evaluate 函数
-    evaluate_with_data = partial(evaluate, X=X, y=y)
-    toolbox.register("evaluate", evaluate_with_data)
-
+    toolbox.register("evaluate", partial(evaluate, X=X, y=y))
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.2, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
 
-    # 注册并行 map
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
 
-    # 初始化种群
-    population = toolbox.population(n=population_size)
+    population = toolbox.population(n=pop_size)
+    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=generations, verbose=True)
 
-    # 运行遗传算法
-    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=n_generations, 
-                        stats=None, halloffame=None, verbose=True)
-
-    # 获取最优个体
     best_individual = tools.selBest(population, k=1)[0]
     pool.close()
-    pool.join()  # 确保所有进程关闭
+    pool.join()
     return best_individual
 
+def evaluate(individual, X, y):
+    """评估个体在数据上的表现，返回准确率的负值。"""
+    return -loss_function(individual, X, y),
+
+def save_weighted_results(data, weights, model_type="gcn_2d"):
+    """保存加权后的预测结果至指定文件。"""
+    weighted_data = np.sum([weights[i] * data[i] for i in range(len(weights))], axis=0)
+    results = {f"test_{i}": weighted_data[i] for i in range(weighted_data.shape[0])}
+
+    with open(f"./partial/partial_{model_type}.pkl", "wb") as f:
+        pickle.dump(results, f)
+
 def accuracy_score(y_true, y_pred):
+    """计算并返回准确率。"""
     return np.mean(y_true == y_pred) * 100
 
-def save_partial_pickle(data_list, weights, gcn_2d: bool, former_2d: bool, gcn_3d: bool, former_3d: bool):
-
-    data = np.array(data_list);  # shape: (models, samples, features)
-    #data = data.transpose(1,0,2);  
-
-    if gcn_2d == False and former_2d == False and gcn_3d == False and former_3d == False:
-        raise ValueError("请至少指定一种模型集。");
-    
-    if gcn_2d == True:
-        name = "gcn_2d";
-    elif former_2d == True:
-        name = "former_2d";
-    elif gcn_3d == True:
-        name = "gcn_3d";
-    elif former_3d == True:
-        name = "former_3d";
-
-    data_dict = {};
-    with open(f"./partial/partial_{name}.pkl", "wb") as f:
-        sample_weighted = [];
-        for index in range(data.shape[0]):
-            sample_weighted.append(data[index] * weights[index]);
-        print(sample_weighted[0].shape)
-        sample_weighted = np.array(sample_weighted);
-        print(sample_weighted.shape);
-        #sample_weighted = sample_weighted.transpose(1,0,2);
-        sample_weighted = np.sum(sample_weighted, axis=0);
-        print(sample_weighted.shape);
-        for index in range(sample_weighted.shape[0]):
-            data_dict[f"test_{index}"] = sample_weighted[index];
-        pickle.dump(data_dict, f);
-        print(len(data_dict));
-        print(len(data_dict['test_0']));
-
 if __name__ == "__main__":
+    gcn_2d, gcn_3d, former_2d, former_3d = False, False, False, False
 
-    gcn_2d = False;
-    gcn_3d = False;
-    former_2d = False;
-    former_3d = False;
-
-    data_list, X, y = load_data(gcn_2d=gcn_2d, gcn_3d=gcn_3d, former_2d=former_2d, former_3d=former_3d)
+    # 加载数据
+    X, y = load_data(gcn_2d=gcn_2d, gcn_3d=gcn_3d, former_2d=former_2d, former_3d=former_3d)
+    
+    # 使用遗传算法优化权重
     start_time = time.time()
-    # 使用遗传算法进行优化
     optimized_weights = optimize_weights_ga(X, y)
-    end_time = time.time()
-    print(f"Optimization completed in {end_time - start_time:.2f} seconds")
-    print(f"Optimized Weights (GA): {optimized_weights}")
+    print(f"Optimization completed in {time.time() - start_time:.2f} seconds")
+    print(f"Optimized Weights: {optimized_weights}")
 
-    # 使用优化后的权重进行加权预测
-    result = weighted(X, optimized_weights)
-    acc = accuracy_score(y, result)
-    print(f"Accuracy with Optimized Weights (GA): {acc}%")
+    # 使用优化的权重进行加权预测
+    predictions = weighted_predictions(X, optimized_weights)
+    acc = accuracy_score(y, predictions)
+    print(f"Accuracy with Optimized Weights: {acc}%")
 
-    # 保存局部集成结果
-    save_partial_pickle(data_list, optimized_weights, gcn_2d=gcn_2d, gcn_3d=gcn_3d, former_2d=former_2d, former_3d=former_3d);
+    # 保存加权结果
+    save_weighted_results(X, optimized_weights, model_type="gcn_2d" if gcn_2d else "former_2d")

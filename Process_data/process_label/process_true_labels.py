@@ -1,11 +1,3 @@
-'''
-用于从比赛的test_label_A.npy中提取出真实标签, 并以
-A<类序号>
-的格式输出。
-例如:
-A009
-A010
-'''
 
 import numpy as np;
 

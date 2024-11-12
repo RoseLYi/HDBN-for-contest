@@ -85,23 +85,7 @@ def main(root_Skeleton_path :str) -> None:
         pad_width = [(0, tgt_shape[i] - joint_data.shape[i]) for i in range(len(tgt_shape))]
         pad_data = np.pad(joint_data, pad_width, mode = 'constant', constant_values = 0)
         assert pad_data[:joint_data.shape[0], :joint_data.shape[1], :, :].all() == joint_data.all()
-        
-        # V1
-        # if subj_id in CS_train_V1:
-        #     CS_train_V1_data.append(pad_data)
-        #     CS_train_V1_label.append(label)
-        # else:
-        #     CS_test_V1_data.append(pad_data)
-        #     CS_test_V1_label.append(label)
-        
-        # # V2    
-        # if subj_id in CS_train_V2:
-        #     CS_train_V2_data.append(pad_data)
-        #     CS_train_V2_label.append(label)
-        # else:
-        #     CS_test_V2_data.append(pad_data)
-        #     CS_test_V2_label.append(label)
-        
+       
         # V1
         if subj_id not in CS_train_V1:
             CS_test_V1_data.append(pad_data)

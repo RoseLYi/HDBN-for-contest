@@ -1,24 +1,19 @@
-import numpy as np;
+import numpy as np
 
-def extract_weighted_loss(labels):
-    '''
-    用于统计每个类的样本数量并根据它生成每个类的权重。
-    :params np.ndarray labels: 加载好的标签数组。
-    '''
+def compute_class_weights(labels):
+    """
+    计算每个类别的权重，基于样本分布。
+    :param labels: np.ndarray, 样本标签数组
+    :return: np.ndarray, 每个类别的权重
+    """
+    num_classes = 155
+    sample_counts = np.bincount(labels, minlength=num_classes)  # 计算每个类的样本数
+    print(f"Sample counts per class: {sample_counts}")
 
-    classes = 155;
+    # 避免除零，初始化权重
+    weights = np.zeros(num_classes, dtype=np.float32)
+    for idx, count in enumerate(sample_counts):
+        weights[idx] = labels.size / count if count > 0 else 0  # 计算权重，避免零除错误
 
-    sample_count = labels.shape[0];   #样本总数
-    distro = np.zeros(classes);       #保存每个类有多少样本的数组，下标是类编号，对应位置的值是那个类的样本数
-    
-    for i in range(sample_count):     #对于每个样本
-        distro[labels[i]] += 1;       #对应类编号的样本数+1
-
-    print(f"distro:{distro}");
-    result = np.zeros(classes, dtype=np.float32);       #保存每个类的权重的数组
-    for index, count in enumerate(distro):      #对于distro中的每个元素, 取得它的类编号和样本数    
-        result[index] = sample_count / count;   #计算权重
-    
-    
-    print(f"result:{result}");
-    return result;                    #返回结果
+    print(f"Class weights: {weights}")
+    return weights

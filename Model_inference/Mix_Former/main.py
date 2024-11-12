@@ -53,7 +53,7 @@ def str2bool(v):
 
 
 def get_parser():
-    # parameter priority: command line > config > default
+   
     parser = argparse.ArgumentParser(
         description='Spatial Temporal Graph Convolution Network')
     parser.add_argument(
@@ -67,7 +67,6 @@ def get_parser():
         default='./config/nturgbd-cross-view/test_bone.yaml',
         help='path to the configuration file')
 
-    # processor
     parser.add_argument(
         '--phase', default='train', help='must be train or test')
     parser.add_argument(
@@ -76,7 +75,6 @@ def get_parser():
         default=False,
         help='if ture, the classification score will be stored')
 
-    # visulize and debug
     parser.add_argument(
         '--seed', type=int, default=1, help='random seed for pytorch')
     parser.add_argument(
@@ -111,7 +109,6 @@ def get_parser():
         nargs='+',
         help='which Top K accuracy will be shown')
 
-    # feeder
     parser.add_argument(
         '--feeder', default='feeder.feeder', help='data loader will be used')
     parser.add_argument(
@@ -130,7 +127,6 @@ def get_parser():
         default=dict(),
         help='the arguments of data loader for test')
 
-    # model
     parser.add_argument('--model', default=None, help='the model will be used')
     parser.add_argument(
         '--model-args',
@@ -148,7 +144,6 @@ def get_parser():
         nargs='+',
         help='the name of weights which will be ignored in the initialization')
 
-    # optim
     parser.add_argument(
         '--base-lr', type=float, default=0.01, help='initial learning rate')
     parser.add_argument(
@@ -186,7 +181,7 @@ def get_parser():
         default=0.0005,
         help='weight decay for optimizer')
     parser.add_argument('--warm_up_epoch', type=int, default=0)
-    # 添加一个新的参数: use-weighted-loss, 用于决定是否使用带权重的损失函数，以解决样本数不均匀的问题
+    
     parser.add_argument(
         '--weighted-loss', 
         type=str2bool,
@@ -221,7 +216,7 @@ class Processor():
             else:
                 self.train_writer = self.val_writer = SummaryWriter(os.path.join(arg.model_saved_name, 'test'), 'test')
         self.global_step = 0
-        # pdb.set_trace()
+        
         self.load_model()
 
         if self.arg.phase == 'model_size':
@@ -271,7 +266,7 @@ class Processor():
         print(self.model)
 
         if(self.arg.weighted_loss):
-            # 加载标签，用于计算weights            
+                     
             labels = np.load(self.arg.train_feeder_args['label_path']);
             weights = torch.from_numpy(extract_weighted_loss(labels));
             self.loss = nn.CrossEntropyLoss(weight=weights).cuda(output_device)
@@ -279,7 +274,7 @@ class Processor():
             self.loss = nn.CrossEntropyLoss().cuda(output_device)
 
         if self.arg.weights:
-            #self.global_step = int(arg.weights[:-3].split('-')[-1])
+          
             self.print_log('Load weights from {}.'.format(self.arg.weights))
             if '.pkl' in self.arg.weights:
                 with open(self.arg.weights, 'r') as f:
@@ -391,10 +386,8 @@ class Processor():
                 label = label.long().cuda(self.output_device)
             timer['dataloader'] += self.split_time()
 
-            # forward
             output = self.model(data)
             loss = self.loss(output, label)
-            # backward
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -408,12 +401,10 @@ class Processor():
             self.train_writer.add_scalar('acc', acc, self.global_step)
             self.train_writer.add_scalar('loss', loss.data.item(), self.global_step)
 
-            # statistics
             self.lr = self.optimizer.param_groups[0]['lr']
             self.train_writer.add_scalar('lr', self.lr, self.global_step)
             timer['statistics'] += self.split_time()
 
-        # statistics of time consumption and loss
         proportion = {
             k: '{:02d}%'.format(int(round(v * 100 / sum(timer.values()))))
             for k, v in timer.items()
@@ -491,7 +482,6 @@ class Processor():
                         self.arg.work_dir, epoch + 1, ln), 'wb') as f:
                     pickle.dump(score_dict, f)
 
-            # acc for each class:
             label_list = np.concatenate(label_list)
             pred_list = np.concatenate(pred_list)
             confusion = confusion_matrix(label_list, pred_list)
@@ -519,7 +509,6 @@ class Processor():
 
                 self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
 
-            # test the best model
             weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]
             weights = torch.load(weights_path)
             if type(self.arg.device) is list:
@@ -577,7 +566,6 @@ def import_class(import_str):
 if __name__ == '__main__':
     parser = get_parser()
 
-    # load arg form config file
     p = parser.parse_args()
     if p.config is not None:
         with open(p.config, 'r') as f:

@@ -1,6 +1,6 @@
+
 import pickle
 import numpy as np
-from pyswarms.single.global_best import GlobalBestPSO
 from deap import base, creator, tools, algorithms
 import time
 import random
@@ -41,67 +41,40 @@ former_names = {
     "skateformer_j_3d": "../scores/Mix_Former/skateformer_B_3d.pkl",
 }
 
-weights = [0.2931585521138443, 0.01628226700493285, 0.6175191316322914, 0.6951296975167518, 0.7206297422357253, 0.7856904981956878, 1.057594514111687, -0.1427378045893291, 1.3867152100500046, -0.7765156290692687, 2.403129591017633, -0.07183271295560331, 2.5025598936507545, 1.6555241819685287, 1.622452787594002, 1.570008806183127, 1.3705078537195217, 3.2309046500985987, 0.9905355181425732, 1.5224143262820893, 0.7184125994846191, 0.23131151423944288, 1.0274011983356686, 0.3097873124138009, 0.01670177475196635, 0.641031868807555, 1.931818771653408]
-
-# 加载预处理的数据
-def load_data(gcn: bool = False, former: bool = False):
-    # 假设每个模型都有自己的特征集，形状为 (2000, 155)
-    data_list = []
+# 加载模型数据
+def load_data(gcn=False, former=False):
+    data = []
     if gcn:
-        for name in gcn_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
+        data += load_from_paths(model_paths["gcn"])
     if former:
-        for name in former_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    
-    data_np = np.array(data_list)
-    
-    X = data_np.transpose(1, 0, 2)  # X shape: (samples, models, features)
-    y = np.load("test_label_A.npy")  # 使用numpy加载实际的标签
-
+        data += load_from_paths(model_paths["former"])
+    X = np.array(data).transpose(1, 0, 2)
+    y = np.load("test_label_A.npy")
     return X, y
 
-def softmax(X):
-    return np.apply_along_axis(lambda x: np.exp(x) / np.sum(np.exp(x)), 0, X)  # 对每个 155 维向量进行 softmax 处理
+def load_from_paths(paths):
+    return [load_model(path) for path in paths]
 
-def weighted(X, weights):
-    # 每个样本的最终预测
-    final_pred = np.array([])
-    
-    for index in range(X.shape[0]):
-        weighted_sum = np.zeros(X.shape[2])  # 初始化一个等形的零向量
-        softmax_values = np.array([softmax(X[index][model_index]) for model_index in range(X.shape[1])])  # 对每个模型计算softmax
-        
-        # 对每个模型的预测结果按权重加权
-        for model_index in range(X.shape[1]):
-            weighted_sum += weights[model_index] * softmax_values[model_index]
-        
-        final_pred = np.append(final_pred, np.argmax(weighted_sum))  # 取权重和的最大值
-    
-    return final_pred
+def load_model(path):
+    with open(path, 'rb') as f:
+        data_dict = pickle.load(f)
+    return [data_dict[f"test_{i}"] for i in range(2000)]
+
+def softmax(X):
+    return np.exp(X) / np.sum(np.exp(X), axis=-1, keepdims=True)
+
+def weighted_predictions(X, weights):
+    return np.array([np.argmax(sum(weights[i] * softmax(X[sample][i]) for i in range(len(weights)))) 
+                     for sample in range(len(X))])
 
 def loss_function(weights, X, y):
-    predictions = weighted(X, weights)
-    accuracy = np.mean(predictions == y)
-    return -accuracy  # 我们希望最大化准确率，所以返回负值
+    predictions = weighted_predictions(X, weights)
+    return -np.mean(predictions == y)
 
-def evaluate(individual, X, y):
-    return -loss_function(individual,X,y),
-    #print(performance);
-    #return performance;
-    #performance = -loss_function(individual, X, y);
-    #penalty = sum(abs(weight) for weight in individual if weight < 0);
-    #return performance - penalty,
+def evaluate_fitness(individual, X, y):
+    return -loss_function(individual, X, y),
 
-
-def optimize_weights_ga(X, y, n_generations=30, population_size=60):
-    # 创建遗传算法工具箱
+def optimize_weights_ga(X, y, generations=30, pop_size=60):
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
 
@@ -109,58 +82,37 @@ def optimize_weights_ga(X, y, n_generations=30, population_size=60):
     toolbox.register("attr_float", random.uniform, 0, 2)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=X.shape[1])
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-    # 使用 partial 将 X 和 y 绑定到 evaluate 函数
-    evaluate_with_data = partial(evaluate, X=X, y=y)
-    toolbox.register("evaluate", evaluate_with_data)
-
+    toolbox.register("evaluate", partial(evaluate_fitness, X=X, y=y))
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0.6, sigma=0.6, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
 
-    stats = tools.Statistics()
-    stats.register("avg", np.mean)
-    stats.register("max", np.max)
-    stats.register("max_individual_fitness", lambda pop: np.max([ind.fitness.values[0] for ind in pop]))
-
-    #保留最佳个体
-    hof = tools.HallOfFame(1);
-
-    # 注册并行 map
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
 
-    # 初始化种群
-    population = toolbox.population(n=population_size)
+    population = toolbox.population(n=pop_size)
+    hall_of_fame = tools.HallOfFame(1)
 
-    # 运行遗传算法
-    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=n_generations, 
-                        stats=stats, halloffame=hof, verbose=True)
+    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=generations, 
+                        halloffame=hall_of_fame, verbose=True)
 
-    #for gen in range(n_generations):
-    #    print(f"Generation {gen}:")
-    #    print("Avg fitness:", stats.compile(population)["avg"])
-    #    print("Max fitness:", stats.compile(population)["max"])
-
-    # 获取最优个体
-    best_individual = tools.selBest(population, k=1)[0]
     pool.close()
-    pool.join()  # 确保所有进程关闭
-    return best_individual
+    pool.join()
+    return hall_of_fame[0]
 
-def accuracy_score(y_true, y_pred):
+def accuracy(y_true, y_pred):
     return np.mean(y_true == y_pred) * 100
 
 if __name__ == "__main__":
     X, y = load_data(gcn=True, former=True)
     start_time = time.time()
-    # 使用遗传算法进行优化
-    optimized_weights = optimize_weights_ga(X, y, n_generations=100, population_size=60)
-    end_time = time.time()
-    print(f"Optimization completed in {end_time - start_time:.2f} seconds")
+    
+    # 优化权重
+    optimized_weights = optimize_weights_ga(X, y, generations=30, pop_size=60)
+    print(f"Optimization completed in {time.time() - start_time:.2f} seconds")
     print(f"Optimized Weights (GA): {optimized_weights}")
 
-    # 使用优化后的权重进行加权预测
-    result = weighted(X, optimized_weights)
-    acc = accuracy_score(y, result)
+    # 使用优化权重进行预测
+    predictions = weighted_predictions(X, optimized_weights)
+    acc = accuracy(y, predictions)
     print(f"Accuracy with Optimized Weights (GA): {acc}%")

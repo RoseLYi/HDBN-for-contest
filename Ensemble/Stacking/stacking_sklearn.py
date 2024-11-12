@@ -1,3 +1,4 @@
+
 import pickle
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -5,6 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import StackingClassifier
 from sklearn.metrics import accuracy_score
 
+# 定义数据路径
 gcn_names = {
     "ctrgcn_jm_3d": "../scores/Mix_GCN/ctrgcn_V1_JM_3d.pkl",
     "ctrgcn_b_3d": "../scores/Mix_GCN/ctrgcn_V1_B_3d.pkl",
@@ -38,50 +40,40 @@ former_names = {
     "skateformer_j_3d": "../scores/Mix_Former/skateformer_B_3d.pkl",
 }
 
-# 加载预处理的数据
-def load_data(gcn: bool = False, former: bool = False):
-    # 假设每个模型都有自己的特征集，形状为 (2000, 155)
+def load_model_scores(file_paths, sample_size=2000):
     data_list = []
-    if gcn:
-        for name in gcn_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    if former:
-        for name in former_names.values():
-            with open(name, 'rb') as f:
-                data_dict = pickle.load(f)  # 使用pickle加载字典格式的数据
-            data = np.array([data_dict[f"test_{i}"] for i in range(2000)])
-            data_list.append(data)
-    
-    data_np = np.array(data_list)
-    
-    X = data_np.transpose(1, 0, 2).reshape(data_np.shape[1], -1)  # 将 X 形状调整为 (samples, models * features)
-    y = np.load("test_label_A.npy")  # 使用numpy加载实际的标签
+    for path in file_paths.values():
+        with open(path, 'rb') as file:
+            data_dict = pickle.load(file)
+        data = np.array([data_dict.get(f"test_{i}") for i in range(sample_size)])
+        data_list.append(data)
+    return np.array(data_list)
 
+def load_data(use_gcn=True, use_former=True, label_path="test_label_A.npy"):
+    feature_sets = []
+    if use_gcn:
+        feature_sets.append(load_model_scores(gcn_paths))
+    if use_former:
+        feature_sets.append(load_model_scores(former_paths))
+        
+    X = np.concatenate(feature_sets, axis=1).transpose(1, 0, 2).reshape(-1, len(feature_sets) * 155)
+    y = np.load(label_path)
     return X, y
 
+def build_stacking_model(base_estimators, final_estimator=LogisticRegression()):
+    return StackingClassifier(estimators=base_estimators, final_estimator=final_estimator)
+
+def evaluate_model(model, X_test, y_test):
+
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Stacking Model Accuracy: {accuracy * 100:.2f}%")
+    return accuracy
+
 if __name__ == "__main__":
-    X, y = load_data(gcn=True, former=True)
-    
-    # 分割数据集为训练集和测试集
+    X, y = load_data(use_gcn=True, use_former=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # 定义基学习器
-    base_learners = [
-        ('lr', LogisticRegression(max_iter=1000)),
-    ]
-    
-    # 定义元学习器（堆叠分类器）
-    stacking_model = StackingClassifier(estimators=base_learners, final_estimator=LogisticRegression())
-    
-    # 训练堆叠模型
+    base_learners = [('lr', LogisticRegression(max_iter=1000))]
+    stacking_model = build_stacking_model(base_learners)
     stacking_model.fit(X_train, y_train)
-    
-    # 在测试集上进行预测
-    y_pred = stacking_model.predict(X_test)
-    
-    # 计算准确率
-    acc = accuracy_score(y_test, y_pred)
-    print(f"Accuracy with Stacking Meta-Learning: {acc * 100:.2f}%")
+    evaluate_model(stacking_model, X_test, y_test)
