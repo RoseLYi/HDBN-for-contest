@@ -1,5 +1,4 @@
 name: pose3d
-#
 channels:
   - pytorch
   - nvidia
