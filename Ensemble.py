@@ -5,192 +5,120 @@ import numpy as np
 import pandas as pd
 
 def get_parser():
-    parser = argparse.ArgumentParser(description = 'multi-stream ensemble') 
-    parser.add_argument(
-        '--mixformer_J_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mixformer_B_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mixformer_JM_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mixformer_BM_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mixformer_k2_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_J_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--mixformer_k2M_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_B_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--ctrgcn_J2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--ctrgcn_B2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--ctrgcn_JM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--ctrgcn_BM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--ctrgcn_J3d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_J_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--ctrgcn_B3d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_B_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--ctrgcn_JM3d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_JM_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--ctrgcn_BM3d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/ctrgcn_V1_BM_3D/epoch1_test_score.pkl'),
-    parser.add_argument(
-        '--tdgcn_J2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/tdgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--tdgcn_B2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/tdgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--tdgcn_JM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/tdgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--tdgcn_BM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/tdgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mstgcn_J2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/mstgcn_V1_J/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mstgcn_B2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/mstgcn_V1_B/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mstgcn_JM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/mstgcn_V1_JM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--mstgcn_BM2d_Score', 
-        type = str,
-        default = './Model_inference/Mix_GCN/output/mstgcn_V1_BM/epoch1_test_score.pkl')
-    parser.add_argument(
-        '--val_sample', 
-        type = str,
-        default = './Process_data/CS_test_V1.txt')
-    parser.add_argument(
-        '--benchmark', 
-        type = str,
-        default = 'V1')
+    """
+    创建命令行参数解析器，用于接收模型预测得分文件路径和其他配置信息。
+    """
+    parser = argparse.ArgumentParser(description='Multi-stream ensemble for action recognition models.')
+    
+    # 添加多个模型的预测得分文件路径
+    parser.add_argument('--mixformer_J_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J/epoch1_test_score.pkl')
+    parser.add_argument('--mixformer_B_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B/epoch1_test_score.pkl')
+    parser.add_argument('--mixformer_JM_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_JM/epoch1_test_score.pkl')
+    parser.add_argument('--mixformer_BM_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_BM/epoch1_test_score.pkl')
+    parser.add_argument('--mixformer_k2_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J_3D/epoch1_test_score.pkl')
+    parser.add_argument('--mixformer_k2M_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B_3D/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_J2d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_B2d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_JM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_JM/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_BM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_BM/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_J3d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_J_3D/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_B3d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_B_3D/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_JM3d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_JM_3D/epoch1_test_score.pkl')
+    parser.add_argument('--ctrgcn_BM3d_Score', type=str, default='./Model_inference/Mix_GCN/output/ctrgcn_V1_BM_3D/epoch1_test_score.pkl')
+    parser.add_argument('--tdgcn_J2d_Score', type=str, default='./Model_inference/Mix_GCN/output/tdgcn_V1_J/epoch1_test_score.pkl')
+    parser.add_argument('--tdgcn_B2d_Score', type=str, default='./Model_inference/Mix_GCN/output/tdgcn_V1_B/epoch1_test_score.pkl')
+    parser.add_argument('--tdgcn_JM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/tdgcn_V1_JM/epoch1_test_score.pkl')
+    parser.add_argument('--tdgcn_BM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/tdgcn_V1_BM/epoch1_test_score.pkl')
+    parser.add_argument('--mstgcn_J2d_Score', type=str, default='./Model_inference/Mix_GCN/output/mstgcn_V1_J/epoch1_test_score.pkl')
+    parser.add_argument('--mstgcn_B2d_Score', type=str, default='./Model_inference/Mix_GCN/output/mstgcn_V1_B/epoch1_test_score.pkl')
+    parser.add_argument('--mstgcn_JM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/mstgcn_V1_JM/epoch1_test_score.pkl')
+    parser.add_argument('--mstgcn_BM2d_Score', type=str, default='./Model_inference/Mix_GCN/output/mstgcn_V1_BM/epoch1_test_score.pkl')
+
+    # 验证集样本文件路径
+    parser.add_argument('--val_sample', type=str, default='./Process_data/CS_test_V1.txt')
+    
+    # 指定数据集基准版本
+    parser.add_argument('--benchmark', type=str, default='V1')
+    
     return parser
 
-def Cal_Score(File, Rate, ntu60XS_num, Numclass):
-    final_score = torch.zeros(ntu60XS_num, Numclass)
-    for idx, file in enumerate(File):
-        fr = open(file,'rb') 
-        inf = pickle.load(fr)
+def load_scores(files):
+    """
+    加载多个模型的预测得分，并返回一个列表。
+    """
+    scores = []
+    for file in files:
+        with open(file, 'rb') as f:
+            score = torch.tensor(pickle.load(f), dtype=torch.float32)
+            scores.append(score)
+    return scores
 
-        df = pd.DataFrame(inf)
-        df = pd.DataFrame(df.values.T, index=df.columns, columns=df.index)
-        score = torch.tensor(data = df.values)
-        final_score += Rate[idx] * score
+def calculate_weighted_score(scores, rates):
+    """
+    根据给定的权重计算加权后的综合得分。
+    """
+    weighted_scores = [score * rate for score, rate in zip(scores, rates)]
+    final_score = torch.sum(torch.stack(weighted_scores), dim=0)
     return final_score
 
-def Cal_Acc(final_score, true_label):
-    wrong_index = []
-    _, predict_label = torch.max(final_score, 1)
-    for index, p_label in enumerate(predict_label):
-        if p_label != true_label[index]:
-            wrong_index.append(index)
-            
-    wrong_num = np.array(wrong_index).shape[0]
-    print('wrong_num: ', wrong_num)
+def calculate_accuracy(final_score, true_labels):
+    """
+    计算预测准确率。
+    """
+    _, predicted_labels = torch.max(final_score, 1)
+    correct_predictions = (predicted_labels == true_labels).sum().item()
+    accuracy = correct_predictions / len(true_labels)
+    return accuracy
 
-    total_num = true_label.shape[0]
-    print('total_num: ', total_num)
-    Acc = (total_num - wrong_num) / total_num
-    return Acc
+def generate_true_labels(val_txt_path):
+    """
+    从验证集样本文件中提取真实标签。
+    """
+    val_txt = np.loadtxt(val_txt_path, dtype=str)
+    true_labels = [int(name.split('A')[1][:3]) for name in val_txt]
+    return torch.tensor(true_labels, dtype=torch.long)
 
-def gen_label(val_txt_path):
-    true_label = []
-    val_txt = np.loadtxt(val_txt_path, dtype = str)
-    for idx, name in enumerate(val_txt):
-        label = int(name.split('A')[1][:3])
-        true_label.append(label)
-
-    true_label = torch.from_numpy(np.array(true_label))
-    return true_label
-
-if __name__ == "__main__":
+def main():
+    """
+    主函数，执行多模型融合及准确率计算。
+    """
     parser = get_parser()
     args = parser.parse_args()
-    
-    # Mix_GCN Score File
-    j_file = args.mixformer_J_Score
-    b_file = args.mixformer_B_Score
-    jm_file = args.mixformer_JM_Score
-    bm_file = args.mixformer_BM_Score
-    k2_file = args.mixformer_k2_Score
-    k2m_file = args.mixformer_k2M_Score
 
-    j_file2 = args.ctrgcn_J2d_Score
-    b_file2 = args.ctrgcn_B2d_Score
-    jm_file2 = args.ctrgcn_JM2d_Score
-    bm_file2 = args.ctrgcn_BM2d_Score
-    j3d_file = args.ctrgcn_J3d_Score
-    b3d_file = args.ctrgcn_B3d_Score
-    jm3d_file = args.ctrgcn_JM3d_Score
-    bm3d_file = args.ctrgcn_BM3d_Score
+    # 收集所有模型的预测得分文件
+    files = [
+        args.mixformer_J_Score, args.mixformer_B_Score, args.mixformer_JM_Score, args.mixformer_BM_Score,
+        args.mixformer_k2_Score, args.mixformer_k2M_Score, args.ctrgcn_J2d_Score, args.ctrgcn_B2d_Score,
+        args.ctrgcn_JM2d_Score, args.ctrgcn_BM2d_Score, args.ctrgcn_J3d_Score, args.ctrgcn_B3d_Score,
+        args.ctrgcn_JM3d_Score, args.ctrgcn_BM3d_Score, args.tdgcn_J2d_Score, args.tdgcn_B2d_Score,
+        args.tdgcn_JM2d_Score, args.tdgcn_BM2d_Score, args.mstgcn_J2d_Score, args.mstgcn_B2d_Score,
+        args.mstgcn_JM2d_Score, args.mstgcn_BM2d_Score
+    ]
     
-    j_file3 = args.tdgcn_J2d_Score
-    b_file3 = args.tdgcn_B2d_Score
-    jm_file3 = args.tdgcn_JM2d_Score
-    bm_file3 = args.tdgcn_BM2d_Score
-    
-    j_file4 = args.mstgcn_J2d_Score
-    b_file4 = args.mstgcn_B2d_Score
-    jm_file4 = args.mstgcn_JM2d_Score
-    bm_file4 = args.mstgcn_BM2d_Score
-    
-    val_txt_file = args.val_sample
-
-    File = [j_file, b_file, jm_file, bm_file, k2_file, k2m_file, \
-            j_file2, b_file2, jm_file2, bm_file2, j3d_file, b3d_file, jm3d_file, bm3d_file, \
-            j_file3, b_file3, jm_file3, bm_file3, j_file4, b_file4, jm_file4, bm_file4]    
+    # 根据基准版本选择相应的权重和样本数量
     if args.benchmark == 'V1':
-        Numclass = 155
-        Sample_Num = 6307
-        Rate = [1.2, 0.7687800313360855, 0.2, 0.2, 1.2, 1.2, 0.8474862468452808, 1.2, 0.2, 0.2, 0.6721599889400984, 0.8671683827594867, 0.2, 0.2, 0.7934336157353554, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2]
-        final_score = Cal_Score(File, Rate, Sample_Num, Numclass)
-        true_label = gen_label(val_txt_file)
-    
-    if args.benchmark == 'V2':
-        Numclass = 155
-        Sample_Num = 6599
-        Rate = [0.7214280414594167, 1.2, 0.2, 1.2, 1.2, 0.9495413913063555, 1.2, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2, 0.6745433985952421, 0.3926448734729191, 0.2, 0.2]  
-        final_score = Cal_Score(File, Rate, Sample_Num, Numclass)
-        true_label = gen_label(val_txt_file)
-    
-    Acc = Cal_Acc(final_score, true_label)
+        num_classes = 155
+        sample_num = 6307
+        rates = [1.2, 0.7687800313360855, 0.2, 0.2, 1.2, 1.2, 0.8474862468452808, 1.2, 0.2, 0.2, 0.6721599889400984, 0.8671683827594867, 0.2, 0.2, 0.7934336157353554, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2]
+    elif args.benchmark == 'V2':
+        num_classes = 155
+        sample_num = 6599
+        rates = [0.7214280414594167, 1.2, 0.2, 1.2, 1.2, 0.9495413913063555, 1.2, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2, 1.2, 1.2, 0.2, 0.2, 0.6745433985952421, 0.3926448734729191, 0.2, 0.2]
+    else:
+        raise ValueError("Unsupported benchmark version")
 
-    print('acc:', Acc)
+    # 加载模型预测得分
+    scores = load_scores(files)
+    
+    # 计算加权后的综合得分
+    final_score = calculate_weighted_score(scores, rates)
+    
+    # 生成真实标签
+    true_labels = generate_true_labels(args.val_sample)
+    
+    # 计算并打印准确率
+    accuracy = calculate_accuracy(final_score, true_labels)
+    print(f'Accuracy: {accuracy:.4f}')
+
+if __name__ == "__main__":
+    main()
